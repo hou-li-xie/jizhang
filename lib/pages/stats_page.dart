@@ -166,6 +166,22 @@ class _StatsPageState extends State<StatsPage> {
         .where((t) => !t.isExpense)
         .fold(0.0, (sum, t) => sum + t.amount);
 
+    // 日均支出
+    final daysInMonth = DateUtils.getDaysInMonth(month.year, month.month);
+    final dailyAvg = monthExpense / daysInMonth;
+
+    // 环比：与上月支出对比
+    final prevMonth = DateTime(month.year, month.month - 1);
+    final prevMonthExpense = widget.store.transactions
+        .where((t) =>
+            t.isExpense &&
+            t.date.year == prevMonth.year &&
+            t.date.month == prevMonth.month)
+        .fold(0.0, (sum, t) => sum + t.amount);
+    final momChange = prevMonthExpense <= 0
+        ? null
+        : (monthExpense - prevMonthExpense) / prevMonthExpense * 100;
+
     final categoryTotals = <String, double>{};
     for (final t in monthTransactions.where((t) => t.isExpense)) {
       categoryTotals.update(t.category, (v) => v + t.amount,
@@ -252,6 +268,48 @@ class _StatsPageState extends State<StatsPage> {
                     _SummaryItem(
                         label: '结余', value: monthIncome - monthExpense),
                   ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    Text('日均 ¥${dailyAvg.toStringAsFixed(2)}',
+                        style: Theme.of(context).textTheme.bodySmall),
+                    if (momChange != null)
+                      Text(
+                        '环比 ${momChange >= 0 ? '+' : ''}${momChange.toStringAsFixed(1)}%',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: momChange >= 0 ? Colors.red : Colors.green,
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                  ],
+                ),
+                if (widget.store.totalBudgetFor(month) != null) ...[
+                  const SizedBox(height: 16),
+                  _BudgetProgress(
+                    spent: monthExpense,
+                    budget: widget.store.totalBudgetFor(month)!,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        // 收支对比
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('收支对比',
+                    style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 16),
+                _IncomeExpenseBars(
+                  income: monthIncome,
+                  expense: monthExpense,
                 ),
               ],
             ),
@@ -366,6 +424,31 @@ class _StatsPageState extends State<StatsPage> {
             ),
           ),
         ),
+        const SizedBox(height: 16),
+        // 分类消费排行 Top 5
+        if (sortedCategories.isNotEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('消费排行',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 12),
+                  for (var i = 0;
+                      i < sortedCategories.length && i < 5;
+                      i++)
+                    _RankBar(
+                      rank: i + 1,
+                      entry: sortedCategories[i],
+                      max: sortedCategories.first.value,
+                      color: chartPalette[i % chartPalette.length],
+                    ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -535,6 +618,196 @@ class _SummaryItem extends StatelessWidget {
           style: Theme.of(context).textTheme.titleMedium,
         ),
       ],
+    );
+  }
+}
+
+/// 预算进度条：显示已花/预算，超支时变红
+class _BudgetProgress extends StatelessWidget {
+  const _BudgetProgress({required this.spent, required this.budget});
+
+  final double spent;
+  final double budget;
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio = budget <= 0 ? 0.0 : (spent / budget).clamp(0.0, 1.0);
+    final over = spent > budget;
+    final color = over ? Colors.red : Theme.of(context).colorScheme.primary;
+    final remaining = budget - spent;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('预算 ¥${budget.toStringAsFixed(0)}',
+                style: Theme.of(context).textTheme.bodySmall),
+            Text(
+              over
+                  ? '超支 ¥${(spent - budget).toStringAsFixed(0)}'
+                  : '剩余 ¥${remaining.toStringAsFixed(0)}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: over ? Colors.red : null,
+                    fontWeight: over ? FontWeight.bold : null,
+                  ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: ratio,
+            minHeight: 8,
+            backgroundColor: Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest,
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 收入 vs 支出 对比柱状图（自绘）
+class _IncomeExpenseBars extends StatelessWidget {
+  const _IncomeExpenseBars({required this.income, required this.expense});
+
+  final double income;
+  final double expense;
+
+  @override
+  Widget build(BuildContext context) {
+    final maxVal = [income, expense].fold<double>(1, (a, b) => a > b ? a : b);
+    const barHeight = 28.0;
+    return Column(
+      children: [
+        _bar(context, '收入', income, maxVal, Colors.green, barHeight),
+        const SizedBox(height: 12),
+        _bar(context, '支出', expense, maxVal, Colors.redAccent, barHeight),
+        const SizedBox(height: 12),
+        Text(
+          income - expense >= 0
+              ? '结余 ¥${(income - expense).toStringAsFixed(2)}'
+              : '超支 ¥${(expense - income).toStringAsFixed(2)}',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: income - expense >= 0 ? Colors.green : Colors.red,
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+      ],
+    );
+  }
+
+  Widget _bar(BuildContext context, String label, double value, double max,
+      Color color, double height) {
+    final ratio = max <= 0 ? 0.0 : (value / max).clamp(0.0, 1.0);
+    return Row(
+      children: [
+        SizedBox(width: 36, child: Text(label)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Stack(
+            children: [
+              Container(
+                height: height,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+              FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: ratio,
+                child: Container(
+                  height: height,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 72,
+          child: Text(
+            '¥${value.toStringAsFixed(0)}',
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontSize: 12),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 分类消费排行条：排名 + 横向进度条 + 金额
+class _RankBar extends StatelessWidget {
+  const _RankBar({
+    required this.rank,
+    required this.entry,
+    required this.max,
+    required this.color,
+  });
+
+  final int rank;
+  final MapEntry<String, double> entry;
+  final double max;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio = max <= 0 ? 0.0 : (entry.value / max).clamp(0.0, 1.0);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 20,
+            child: Text(
+              '$rank',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: rank <= 3 ? color : Colors.grey,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(entry.key,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    Text('¥${entry.value.toStringAsFixed(0)}',
+                        style: Theme.of(context).textTheme.bodySmall),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(3),
+                  child: LinearProgressIndicator(
+                    value: ratio,
+                    minHeight: 6,
+                    backgroundColor: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest,
+                    valueColor: AlwaysStoppedAnimation<Color>(color),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

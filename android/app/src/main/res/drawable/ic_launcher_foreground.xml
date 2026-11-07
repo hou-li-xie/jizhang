@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 自适应图标前景：仅绘图形，不含背景，保证任意遮罩下不裁剪 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 图形整体缩到画布 78%，图形包围盒居中于画布 -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.78"
+        android:scaleY="0.78">
+
+        <!-- 笔记本封面 -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M39.5,29 h29 a4.5,4.5 0 0 1 4.5,4.5 v41 a4.5,4.5 0 0 1 -4.5,4.5 h-29 a4.5,4.5 0 0 1 -4.5,-4.5 v-41 a4.5,4.5 0 0 1 4.5,-4.5 z" />
+
+        <!-- 书脊 -->
+        <path
+            android:fillColor="#F0F3F1"
+            android:pathData="M39.5,29 h6 v50 h-6 a4.5,4.5 0 0 1 -4.5,-4.5 v-41 a4.5,4.5 0 0 1 4.5,-4.5 z" />
+
+        <!-- 居中的金额徽章 -->
+        <path
+            android:fillColor="#F5B301"
+            android:pathData="M54,41 a13,13 0 1 1 0,26 a13,13 0 1 1 0,-26 z" />
+
+        <!-- 人民币符号 -->
+        <path
+            android:pathData="M48.4,47.4 L54,54.4 M59.6,47.4 L54,54.4 M54,54.4 L54,61.2 M48.9,57.2 L59.1,57.2 M48.9,60.2 L59.1,60.2"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="2.6"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
+</vector>

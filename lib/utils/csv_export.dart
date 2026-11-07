@@ -6,9 +6,9 @@ import '../models/transaction.dart';
 
 const _channel = MethodChannel('jizhang/download');
 
-/// 生成 CSV 文本，表头：日期,类型,分类,金额,备注。
+/// 生成 CSV 文本，表头：日期,类型,分类,金额,备注,账户,标签,币种。
 String buildCsv(List<Transaction> transactions) {
-  final buffer = StringBuffer('日期,类型,分类,金额,备注\n');
+  final buffer = StringBuffer('日期,类型,分类,金额,备注,账户,标签,币种\n');
   for (final t in transactions) {
     final date =
         '${t.date.year}-${t.date.month.toString().padLeft(2, '0')}-${t.date.day.toString().padLeft(2, '0')}';
@@ -18,6 +18,9 @@ String buildCsv(List<Transaction> transactions) {
       _cell(t.category),
       t.amount.toStringAsFixed(2),
       _cell(t.note),
+      _cell(t.account),
+      _cell(t.tags.join('|')),
+      t.currency,
     ].join(','));
   }
   return buffer.toString();

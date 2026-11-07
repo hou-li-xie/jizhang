@@ -2,9 +2,9 @@
 <!-- 启动页：品牌绿背景 + 居中应用图标 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/ic_launcher_background" />
-    <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@drawable/launch_image" />
-    </item>
+    <item
+        android:width="152dp"
+        android:height="152dp"
+        android:drawable="@drawable/ic_launcher_foreground"
+        android:gravity="center" />
 </layer-list>

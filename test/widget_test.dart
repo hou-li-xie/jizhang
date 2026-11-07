@@ -9,14 +9,12 @@ import 'package:jizhang/utils/csv_export.dart';
 import 'package:jizhang/widgets/charts.dart';
 
 void main() {
-  testWidgets('应用启动后显示记账首页与底部导航', (WidgetTester tester) async {
+  testWidgets('应用启动后显示轻账首页与底部导航', (WidgetTester tester) async {
     // 测试环境使用纯内存仓库，避免依赖原生 SQLite
     await tester.pumpWidget(JizhangApp(store: TransactionStore.memory()));
-    // 跳过启动页（1.5s 停留 + 淡入）
-    await tester.pump(const Duration(seconds: 2));
     await tester.pumpAndSettle();
 
-    expect(find.text('记账'), findsOneWidget);
+    expect(find.text('轻账'), findsOneWidget);
     expect(find.text('明细'), findsOneWidget);
     expect(find.text('统计'), findsOneWidget);
     expect(find.text('我的'), findsOneWidget);
@@ -95,7 +93,7 @@ void main() {
     expect(store.transactions.single.note, '打车');
   });
 
-  testWidgets('点击账目打开编辑弹层，保存后列表更新', (WidgetTester tester) async {
+  testWidgets('左滑点编辑打开弹层，保存后列表更新', (WidgetTester tester) async {
     final store = TransactionStore.memory();
     await store.add(Transaction(
       id: 1,
@@ -109,8 +107,10 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     await tester.pumpAndSettle();
 
-    // 点击账目，弹层应预填原数据
-    await tester.tap(find.text('餐饮'));
+    // 左滑露出操作按钮，点「编辑」，弹层应预填原数据
+    await tester.drag(find.text('餐饮'), const Offset(-300, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('编辑'));
     await tester.pumpAndSettle();
     expect(find.widgetWithText(TextField, '12.00'), findsOneWidget);
 
@@ -140,9 +140,9 @@ void main() {
       ),
     ]);
     final lines = csv.trim().split('\n');
-    expect(lines[0], '日期,类型,分类,金额,备注');
-    expect(lines[1], '2026-11-06,支出,餐饮,12.50,"午餐, 加辣"');
-    expect(lines[2], '2026-11-01,收入,工资,1000.00,');
+    expect(lines[0], '日期,类型,分类,金额,备注,账户,标签,币种');
+    expect(lines[1], '2026-11-06,支出,餐饮,12.50,"午餐, 加辣",,,CNY');
+    expect(lines[2], '2026-11-01,收入,工资,1000.00,,,,CNY');
   });
 
   test('分类管理：默认分类就绪，可增删，被引用时禁止删除', () async {
@@ -272,6 +272,7 @@ void main() {
 
     // 切换为近 3 个月，4 个月前那笔不再计入
     await tester.ensureVisible(find.text('近 6 个月'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('近 6 个月'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('近 3 个月'));
